@@ -1,0 +1,7 @@
+aiogram
+python-dotenv
+langchain
+langchain-groq
+apscheduler
+sqlalchemy
+vobject
