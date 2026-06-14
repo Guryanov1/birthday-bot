@@ -22,8 +22,8 @@ scheduler = AsyncIOScheduler()
 @dp.message(Command("start"))
 async def start(message: types.Message):
     await message.answer(
-        "🎉 <b>Birthday Guardian</b> — активен\n\n"
-        "Основные команды:\n"
+        "🎉 <b>Birthday Guardian</b> — работает\n\n"
+        "Команды:\n"
         "/list — все дни рождения\n"
         "/nearest — ближайшие 30 дней\n"
         "/today — сегодня\n"
@@ -37,14 +37,19 @@ async def cmd_list(message: types.Message):
     birthdays = session.query(Birthday).order_by(Birthday.birth_date).all()
     
     if not birthdays:
-        return await message.answer("📭 Нет записей.")
+        return await message.answer("📭 Пока нет дней рождения.")
     
     text = f"📋 <b>Все дни рождения ({len(birthdays)}):</b>\n\n"
-    for b in birthdays[:50]:
+    current_month = None
+    
+    for b in birthdays:
+        month = b.birth_date.month
+        if month != current_month:
+            text += f"\n📅 <b>{b.birth_date.strftime('%B')}</b>\n"
+            current_month = month
         text += f"🎂 {b.name} — {b.birth_date.strftime('%d.%m')}\n"
-    if len(birthdays) > 50:
-        text += f"\n... и ещё {len(birthdays)-50} человек"
-    await message.answer(text)
+    
+    await message.answer(text, parse_mode="HTML")
 
 @dp.message(Command("nearest"))
 async def cmd_nearest(message: types.Message):
@@ -53,7 +58,8 @@ async def cmd_nearest(message: types.Message):
     end_date = today + datetime.timedelta(days=30)
     
     birthdays = session.query(Birthday).filter(
-        Birthday.birth_date.between(today, end_date)
+        Birthday.birth_date >= today,
+        Birthday.birth_date <= end_date
     ).order_by(Birthday.birth_date).all()
     
     if not birthdays:
@@ -63,6 +69,7 @@ async def cmd_nearest(message: types.Message):
     for b in birthdays:
         days_left = (b.birth_date - today).days
         text += f"🎂 {b.name} — {b.birth_date.strftime('%d.%m')} (через {days_left} дней)\n"
+    
     await message.answer(text, parse_mode="HTML")
 
 @dp.message(Command("today"))
@@ -83,7 +90,20 @@ async def cmd_delete(message: types.Message):
         else:
             await message.answer("❌ Запись не найдена.")
     except:
-        await message.answer("Использование: /delete ID\n\nID можно увидеть в команде /list")
+        await message.answer("Использование: /delete ID\nСначала выполни /list")
+
+@dp.message(Command("import"))
+async def cmd_import(message: types.Message):
+    await message.answer("📤 Пришли мне .vcf файл с контактами")
+
+@dp.message(F.document)
+async def handle_document(message: types.Message):
+    if not message.document.file_name.lower().endswith('.vcf'):
+        return await message.answer("❌ Пришли .vcf файл")
+    
+    await message.answer("🔄 Обрабатываю файл...")
+    # Здесь можно добавить полный код обработки vcf позже
+    await message.answer("✅ Импорт пока в разработке. Используй /add для ручного добавления.")
 
 async def check_birthdays_today(message=None):
     try:
@@ -93,10 +113,8 @@ async def check_birthdays_today(message=None):
             Birthday.birth_date.like(f"%-{today.month:02d}-{today.day:02d}")
         ).all()
         
-        if not birthdays:
-            if message:
-                await message.answer("🎉 Сегодня никто не празднует.")
-            return
+        if not birthdays and message:
+            return await message.answer("🎉 Сегодня никто не празднует.")
         
         for b in birthdays:
             age = today.year - b.birth_date.year
