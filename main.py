@@ -49,19 +49,15 @@ async def cmd_nearest(message: types.Message):
     
     for b in session.query(Birthday).all():
         try:
-            # Создаём дату в текущем году
             this_year = datetime.date(today.year, b.birth_date.month, b.birth_date.day)
-            
-            # Если дата уже прошла — переносим на следующий год
             if this_year < today:
                 this_year = datetime.date(today.year + 1, b.birth_date.month, b.birth_date.day)
             
             days_left = (this_year - today).days
-            
             if 0 <= days_left <= 30:
                 upcoming.append((b, days_left))
         except:
-            continue  # пропускаем некорректные даты (например 29 февраля)
+            continue
     
     if not upcoming:
         return await message.answer("🎉 В ближайшие 30 дней нет дней рождения.")
